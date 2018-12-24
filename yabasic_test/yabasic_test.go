@@ -12,7 +12,7 @@ func TestInitialRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute)
+	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Fail()
@@ -28,7 +28,7 @@ func TestSuccessfulSoftRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Minute)
+	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Minute, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Errorf("not ok")
@@ -50,7 +50,7 @@ func TestFailedSoftRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Minute)
+	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Minute, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Errorf("not ok")
@@ -73,7 +73,7 @@ func TestFailedHardRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Microsecond)
+	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Microsecond, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Errorf("not ok")
