@@ -94,3 +94,24 @@ func TestFailedHardRefresh(t *testing.T) {
 
 }
 
+func TestCacheCapacity(t *testing.T) {
+	value := "un"
+	ok := true
+	query := func (key string) (string,bool) {
+		return value, ok
+	}	
+	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute, 2)
+	str,ok := ybc.Get("one")
+	if !ok || str != "un" {
+		t.Fail()
+	}
+	value = "deux"
+	str,ok = ybc.Get("two")
+	if !ok || str != "deux" {
+		t.Fail()
+	}
+	str,ok = ybc.Get("one")
+	if !ok || str != "un" {
+		t.Fail()
+	}
+}

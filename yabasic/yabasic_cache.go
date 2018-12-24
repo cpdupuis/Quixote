@@ -28,6 +28,12 @@ type cache struct {
 }
 
 func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) YabasicCache {
+	if maxCount < 2 {
+		panic("maxCount must be at least 2.")
+	}
+	if softLimit > hardLimit {
+		panic("hardLimit must be longer than softLimit")
+	}
 	return cache{
 		index: make(map[string]*cacheItem), 
 		queryFunc: queryFunc, 
