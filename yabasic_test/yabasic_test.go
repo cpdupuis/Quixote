@@ -103,15 +103,45 @@ func TestCacheCapacity(t *testing.T) {
 	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute, 2)
 	str,ok := ybc.Get("one")
 	if !ok || str != "un" {
-		t.Fail()
+		t.Errorf("Expected un, got %s", str)
 	}
 	value = "deux"
 	str,ok = ybc.Get("two")
 	if !ok || str != "deux" {
-		t.Fail()
+		t.Errorf("expected deux, got %s", str)
 	}
+	value = "trois"
 	str,ok = ybc.Get("one")
 	if !ok || str != "un" {
+		t.Errorf("expected un, got: %s", str)
+	}
+}
+
+func TestCacheEviction(t *testing.T) {
+	value := "un"
+	ok := true
+	query := func (key string) (string,bool) {
+		return value, ok
+	}	
+	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute, 2)
+	_,_ = ybc.Get("one")
+	value = "deux"
+	_,_ = ybc.Get("two")
+	value = "trois"
+	_,_ = ybc.Get("three")
+
+	value = "new"
+	str,_ := ybc.Get("three")
+	if str != "trois" {
 		t.Fail()
+	}
+	str,_ = ybc.Get("two")
+	if str != "deux" {
+		t.Fail()
+	}
+	str,_ = ybc.Get("one")
+	if str != "new" {
+		// old value should have been evicted
+		t.Errorf("Wrong value: %s", str)
 	}
 }

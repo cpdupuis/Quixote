@@ -1,6 +1,7 @@
 package yabasic
 
 import (
+	"fmt"
 	"sync"
 	"time"
 	"log"
@@ -13,6 +14,7 @@ type cacheItem struct {
 
 type YabasicCache interface {
 	Get(string) (string,bool)
+	Dump()
 }
 
 type cache struct {
@@ -25,6 +27,7 @@ type cache struct {
 	softLimit time.Duration // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
 	hardLimit time.Duration // after the hardLimit, the cached value is removed.
 	mutex sync.RWMutex
+	count int
 }
 
 func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) YabasicCache {
@@ -34,7 +37,7 @@ func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Durat
 	if softLimit > hardLimit {
 		panic("hardLimit must be longer than softLimit")
 	}
-	return cache{
+	return &cache{
 		index: make(map[string]*cacheItem), 
 		queryFunc: queryFunc, 
 		softLimit: softLimit, 
@@ -42,26 +45,26 @@ func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Durat
 		timelineLen: maxCount,
 		timeline: make([]*string, maxCount),
 		timelineHead: 0,
-		timelineTail: 1,
-
+		timelineTail: 0,
+		count: 0,
 	}
-
 }
 
 
-func (c cache) freeHead() {
+func (c *cache) freeHead() {
 	delete(c.index, *c.timeline[c.timelineHead])
 	c.timeline[c.timelineHead] = nil
 	c.timelineHead = (c.timelineHead + 1) % c.timelineLen
+	c.count--
 }
 
 // Must be called inside the write-lock
-func (c cache) makeSpace(now time.Time) {
+func (c *cache) makeSpace(now time.Time) {
 	// first, clean up any entries past the hard limit
 	for {
 		// stop if the timeline is empty
-		if (c.timelineHead + 1) % c.timelineLen == c.timelineTail {
-			break
+		if c.count == 0 {
+			return
 		}
 		// no null checks here. Ensure the data is correct by construction
 		key := c.timeline[c.timelineHead]
@@ -80,12 +83,13 @@ func (c cache) makeSpace(now time.Time) {
 	}
 }
 
-func (c cache) addToTimeline(key *string) {
+func (c *cache) addToTimeline(key *string) {
 	c.timeline[c.timelineTail] = key
 	c.timelineTail = (c.timelineTail + 1) % c.timelineLen
+	c.count++
 }
 
-func (c cache) refresh(key string, now time.Time) (string,bool) {
+func (c *cache) refresh(key string, now time.Time) (string,bool) {
 	val,ok := c.queryFunc(key)
 	if ok {
 		ci := &cacheItem{value:val, createTime: now}
@@ -102,7 +106,7 @@ func (c cache) refresh(key string, now time.Time) (string,bool) {
 }
 
 
-func (c cache) Get(key string) (string, bool) {
+func (c *cache) Get(key string) (string, bool) {
 	c.mutex.RLock()
 	cacheVal := c.index[key]
 	c.mutex.RUnlock()
@@ -125,4 +129,16 @@ func (c cache) Get(key string) (string, bool) {
 	}
 	// fallthrough: the cache didn't help us
 	return c.refresh(key, now)
+}
+
+func (c *cache) Dump() {
+	fmt.Printf("Index:\n")
+	for k,v := range(c.index) {
+		fmt.Printf("  %s : %s\n", k, v.value)
+	}
+	fmt.Printf("timelineLen: %d\n", c.timelineLen)
+	fmt.Printf("timelineHead: %d\n", c.timelineHead)
+	fmt.Printf("timelineTail: %d\n", c.timelineTail)
+	fmt.Printf("timeline len %d\n", len(c.timeline))
+	fmt.Printf("timeline %v\n", c.timeline)
 }
