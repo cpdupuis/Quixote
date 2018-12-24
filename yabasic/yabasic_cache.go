@@ -15,7 +15,7 @@ type YabasicCache interface {
 }
 
 type cache struct {
-	index map[string]*cacheItem
+	index map[string]*cacheItem // protected by mutex.
 	queryFunc func(string) (string,bool) // returns the content and whether there was any content
 	softLimit time.Duration // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
 	hardLimit time.Duration // after the hardLimit, the cached value is removed.
@@ -30,7 +30,9 @@ func (c cache) refresh(key string, now time.Time) (string,bool) {
 	val,ok := c.queryFunc(key)
 	if ok {
 		ci := &cacheItem{value:val, createTime: now}
+		c.mutex.Lock()
 		c.index[key] = ci
+		c.mutex.Unlock()
 		return val, true
 	} else {
 		// no cached result, sorry
@@ -41,8 +43,8 @@ func (c cache) refresh(key string, now time.Time) (string,bool) {
 
 func (c cache) Get(key string) (string, bool) {
 	c.mutex.Lock()
-	defer c.mutex.Unlock()
 	cacheVal := c.index[key]
+	c.mutex.Unlock()
 	now := time.Now()
 	if cacheVal != nil {
 		since := now.Sub(cacheVal.createTime)
