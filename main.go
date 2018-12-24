@@ -14,4 +14,13 @@ func main() {
 	if ok {
 		fmt.Printf("Cached: %s\n", str)
 	}
+	cache.ClearWhere(func (k string, v string) bool {
+		return true
+	})
+	str,ok = cache.Get("schuler sisters")
+	if ok {
+		fmt.Printf("Oops, didn't clear")
+	} else {
+		fmt.Printf("Cleared!")
+	}
 }
