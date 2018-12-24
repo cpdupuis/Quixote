@@ -67,3 +67,30 @@ func TestFailedSoftRefresh(t *testing.T) {
 	}
 }
 
+func TestFailedHardRefresh(t *testing.T) {
+	value := "value"
+	ok := true
+	query := func (key string) (string,bool) {
+		return value, ok
+	}
+	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Microsecond)
+	str,ok := ybc.Get("anything")
+	if !ok {
+		t.Errorf("not ok")
+	}
+	if str != "value" {
+		t.Errorf("not value")
+	}
+	time.Sleep(2 * time.Microsecond)
+	value = ""
+	ok = false
+	str,ok = ybc.Get("anything")
+	if ok {
+		t.Fail()
+	}
+	if str != "" {
+		t.Errorf("not value %s", str)
+	}
+
+}
+

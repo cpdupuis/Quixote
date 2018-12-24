@@ -1,6 +1,7 @@
 package yabasic
 
 import (
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ type cache struct {
 	queryFunc func(string) (string,bool) // returns the content and whether there was any content
 	softLimit time.Duration // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
 	hardLimit time.Duration // after the hardLimit, the cached value is removed.
+	mutex sync.Mutex
 }
 
 func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration) YabasicCache {
@@ -38,6 +40,8 @@ func (c cache) refresh(key string, now time.Time) (string,bool) {
 
 
 func (c cache) Get(key string) (string, bool) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
 	cacheVal := c.index[key]
 	now := time.Now()
 	if cacheVal != nil {
