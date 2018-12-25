@@ -1,6 +1,7 @@
 package yabasic_test
 
 import (
+	"fmt"
 	"github.com/cpdupuis/Quixote/yabasic"
 	"testing"
 	"time"
@@ -143,5 +144,17 @@ func TestCacheEviction(t *testing.T) {
 	if str != "new" {
 		// old value should have been evicted
 		t.Errorf("Wrong value: %s", str)
+	}
+}
+
+func TestPerfNoOverflow(t *testing.T) {
+	query := func (key string) (string,bool) {
+		return key, true
+	}
+	ybc := yabasic.MakeYabasicCache(query, 500 * time.Millisecond, 600 * time.Millisecond, 1025)
+	for j:=0; j<1000; j++ {
+		for i:=0; i<1024; i++ {
+			_,_= ybc.Get(fmt.Sprintf("key:%d", i))
+		}
 	}
 }

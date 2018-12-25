@@ -7,6 +7,10 @@ import (
 	"log"
 )
 
+// It's just a basic cache.
+// Eviction policy is oldest-first. Supports hard limit on age of items, as well as soft
+// limit. When the soft limit is reached, the cache will attempt to refresh the item from the
+// source, but it will return the cached item if the refresh fails.
 type cacheItem struct {
 	value string
 	createTime time.Time
