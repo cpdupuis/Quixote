@@ -151,9 +151,9 @@ func TestPerfNoOverflow(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return key, true
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Microsecond, 2 * time.Minute, 2048)
+	ybc := yabasic.MakeYabasicCache(query, 	10* time.Millisecond, 2 * time.Minute, 1025)
 
-	for j:=0; j<65536; j++ {
+	for j:=0; j<2048; j++ {
 		for i:=0; i<1024; i++ {
 			key := fmt.Sprintf("key:%d", i)
 			res,ok := ybc.Get(key)

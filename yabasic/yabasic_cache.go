@@ -33,6 +33,9 @@ type cache struct {
 	mutex sync.RWMutex
 	count int
 	unexpiredEvictionCount int
+	cacheHitCount int
+	cacheMissCount int
+	cacheRescueCount int
 }
 
 func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) YabasicCache {
@@ -49,9 +52,6 @@ func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Durat
 		hardLimit: hardLimit,
 		timelineLen: maxCount,
 		timeline: make([]*string, maxCount),
-		timelineHead: 0,
-		timelineTail: 0,
-		count: 0,
 	}
 }
 
@@ -121,18 +121,22 @@ func (c *cache) Get(key string) (string, bool) {
 		since := now.Sub(cacheVal.createTime)
 		if since < c.softLimit {
 			// Just return the cached value
+			c.cacheHitCount++
 			return cacheVal.value,true
 		} else if since < c.hardLimit {
 			val,ok := c.refresh(key, now)
 			if ok {
+				c.cacheMissCount++
 				// Hey, we refreshed successfully!
 				return val, true
 			} else {
+				c.cacheRescueCount++
 				// We didn't refresh, but it's still OK.
 				return cacheVal.value, true
 			}
 		}
 	}
+	c.cacheMissCount++
 	// fallthrough: the cache didn't help us
 	return c.refresh(key, now)
 }
@@ -152,4 +156,9 @@ func (c *cache) Dump() {
 func (c *cache) Stats() {
 	fmt.Printf("Cache count: %d\n", c.count)
 	fmt.Printf("Unexpired eviction count: %d\n", c.unexpiredEvictionCount)
+	calls := c.cacheHitCount + c.cacheMissCount + c.cacheRescueCount
+	fmt.Printf("Cache hit count: %d Percent: %d\n", c.cacheHitCount, (c.cacheHitCount*100)/calls)
+	fmt.Printf("Cache miss count: %d Percent: %d\n", c.cacheMissCount, (c.cacheMissCount*100)/calls)
+	fmt.Printf("Cache rescue count: %d Percent: %d\n", c.cacheRescueCount, (c.cacheRescueCount*100)/calls)
+
 }
