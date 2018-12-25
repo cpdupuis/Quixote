@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 	"time"
-	"log"
 )
 
 // It's just a basic cache.
@@ -19,6 +18,7 @@ type cacheItem struct {
 type YabasicCache interface {
 	Get(string) (string,bool)
 	Dump()
+	Stats()
 }
 
 type cache struct {
@@ -32,6 +32,7 @@ type cache struct {
 	hardLimit time.Duration // after the hardLimit, the cached value is removed.
 	mutex sync.RWMutex
 	count int
+	unexpiredEvictionCount int
 }
 
 func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) YabasicCache {
@@ -70,10 +71,11 @@ func (c *cache) makeSpace(now time.Time) {
 		if c.count == 0 {
 			return
 		}
-		// no null checks here. Ensure the data is correct by construction
 		key := c.timeline[c.timelineHead]
 		ci := c.index[*key]
-		if ci.createTime.Add(c.hardLimit).Before(now) {
+		if ci == nil {
+			c.freeHead()
+		} else if ci.createTime.Add(c.hardLimit).Before(now) {
 			// item is past its limit. Let's free it up!
 			c.freeHead()
 		} else {
@@ -82,7 +84,7 @@ func (c *cache) makeSpace(now time.Time) {
 	}
 	// If there is still no space, let's make some.
 	if c.timelineTail == c.timelineHead {
-		log.Println("Evicting unexpired entry")
+		c.unexpiredEvictionCount++
 		c.freeHead()
 	}
 }
@@ -145,4 +147,9 @@ func (c *cache) Dump() {
 	fmt.Printf("timelineTail: %d\n", c.timelineTail)
 	fmt.Printf("timeline len %d\n", len(c.timeline))
 	fmt.Printf("timeline %v\n", c.timeline)
+}
+
+func (c *cache) Stats() {
+	fmt.Printf("Cache count: %d\n", c.count)
+	fmt.Printf("Unexpired eviction count: %d\n", c.unexpiredEvictionCount)
 }

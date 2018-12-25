@@ -151,10 +151,20 @@ func TestPerfNoOverflow(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return key, true
 	}
-	ybc := yabasic.MakeYabasicCache(query, 500 * time.Millisecond, 600 * time.Millisecond, 1025)
-	for j:=0; j<1000; j++ {
+	ybc := yabasic.MakeYabasicCache(query, time.Microsecond, 2 * time.Minute, 2048)
+
+	for j:=0; j<65536; j++ {
 		for i:=0; i<1024; i++ {
-			_,_= ybc.Get(fmt.Sprintf("key:%d", i))
+			key := fmt.Sprintf("key:%d", i)
+			res,ok := ybc.Get(key)
+			if !ok {
+				t.Errorf("Not OK!")
+				return
+			}
+			if res != key {
+				t.Errorf("Wrong res, expected %s, got %s", key, res)
+			}
 		}
 	}
+	ybc.Stats()
 }
