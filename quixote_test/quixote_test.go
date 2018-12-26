@@ -1,8 +1,8 @@
-package yabasic_test
+package quixote_test
 
 import (
 	"fmt"
-	"github.com/cpdupuis/Quixote/yabasic"
+	"github.com/cpdupuis/Quixote/quixote"
 	"testing"
 	"time"
 )
@@ -13,7 +13,7 @@ func TestInitialRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute, 2)
+	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Fail()
@@ -29,7 +29,7 @@ func TestSuccessfulSoftRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Minute, 2)
+	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Minute, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Errorf("not ok")
@@ -51,7 +51,7 @@ func TestFailedSoftRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Minute, 2)
+	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Minute, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Errorf("not ok")
@@ -74,7 +74,7 @@ func TestFailedHardRefresh(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}
-	ybc := yabasic.MakeYabasicCache(query, time.Nanosecond, time.Microsecond, 2)
+	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Microsecond, 2)
 	str,ok := ybc.Get("anything")
 	if !ok {
 		t.Errorf("not ok")
@@ -101,7 +101,7 @@ func TestCacheCapacity(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}	
-	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute, 2)
+	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
 	str,ok := ybc.Get("one")
 	if !ok || str != "un" {
 		t.Errorf("Expected un, got %s", str)
@@ -124,7 +124,7 @@ func TestCacheEviction(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return value, ok
 	}	
-	ybc := yabasic.MakeYabasicCache(query, time.Minute, time.Minute, 2)
+	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
 	_,_ = ybc.Get("one")
 	value = "deux"
 	_,_ = ybc.Get("two")
@@ -151,7 +151,7 @@ func TestPerfNoOverflow(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return key, true
 	}
-	ybc := yabasic.MakeYabasicCache(query, 	10* time.Millisecond, 2 * time.Minute, 1025)
+	ybc := quixote.MakeQuixoteCache(query, 	10* time.Millisecond, 2 * time.Minute, 1025)
 
 	for j:=0; j<2048; j++ {
 		for i:=0; i<1024; i++ {

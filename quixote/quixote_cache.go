@@ -1,4 +1,4 @@
-package yabasic
+package quixote
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ type cacheItem struct {
 	id uint64
 }
 
-type YabasicCache interface {
+type QuixoteCache interface {
 	Get(string) (string,bool)
 	Dump()
 	Stats()
@@ -45,7 +45,7 @@ type cache struct {
 	cacheRescueCount int
 }
 
-func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) YabasicCache {
+func MakeQuixoteCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) QuixoteCache {
 	if maxCount < 2 {
 		panic("maxCount must be at least 2.")
 	}
