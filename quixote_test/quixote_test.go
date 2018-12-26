@@ -166,5 +166,5 @@ func TestPerfNoOverflow(t *testing.T) {
 			}
 		}
 	}
-	ybc.Stats()
+	ybc.Stats().Dump()
 }

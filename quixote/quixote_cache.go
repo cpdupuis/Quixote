@@ -20,7 +20,7 @@ type cacheItem struct {
 type QuixoteCache interface {
 	Get(string) (string,bool)
 	Dump()
-	Stats()
+	Stats() Stats
 }
 
 type timelineItem struct {
@@ -39,10 +39,7 @@ type cache struct {
 	hardLimit time.Duration // after the hardLimit, the cached value is removed.
 	mutex sync.RWMutex
 	count int
-	unexpiredEvictionCount int
-	cacheHitCount int
-	cacheMissCount int
-	cacheRescueCount int
+	stats Stats
 }
 
 func MakeQuixoteCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) QuixoteCache {
@@ -96,7 +93,7 @@ func (c *cache) makeSpace(now time.Time) {
 	}
 	// If there is still no space, let's make some.
 	if c.timelineTail == c.timelineHead {
-		c.unexpiredEvictionCount++
+		c.stats.UnexpiredEvictionCount++
 		c.freeHead(true)
 	}
 }
@@ -135,22 +132,22 @@ func (c *cache) Get(key string) (string, bool) {
 		since := now.Sub(cacheVal.createTime)
 		if since < c.softLimit {
 			// Just return the cached value
-			c.cacheHitCount++
+			c.stats.CacheHitCount++
 			return cacheVal.value,true
 		} else if since < c.hardLimit {
 			val,ok := c.refresh(key, now)
 			if ok {
-				c.cacheMissCount++
+				c.stats.CacheMissCount++
 				// Hey, we refreshed successfully!
 				return val, true
 			} else {
-				c.cacheRescueCount++
+				c.stats.CacheRescueCount++
 				// We didn't refresh, but it's still OK.
 				return cacheVal.value, true
 			}
 		}
 	}
-	c.cacheMissCount++
+	c.stats.CacheMissCount++
 	// fallthrough: the cache didn't help us
 	return c.refresh(key, now)
 }
@@ -167,12 +164,6 @@ func (c *cache) Dump() {
 	fmt.Printf("timeline %v\n", c.timeline)
 }
 
-func (c *cache) Stats() {
-	fmt.Printf("Cache count: %d\n", c.count)
-	fmt.Printf("Unexpired eviction count: %d\n", c.unexpiredEvictionCount)
-	calls := c.cacheHitCount + c.cacheMissCount + c.cacheRescueCount
-	fmt.Printf("Cache hit count: %d Percent: %d\n", c.cacheHitCount, (c.cacheHitCount*100)/calls)
-	fmt.Printf("Cache miss count: %d Percent: %d\n", c.cacheMissCount, (c.cacheMissCount*100)/calls)
-	fmt.Printf("Cache rescue count: %d Percent: %d\n", c.cacheRescueCount, (c.cacheRescueCount*100)/calls)
-
+func (c *cache) Stats() Stats {
+	return c.stats
 }
