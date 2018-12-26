@@ -151,9 +151,9 @@ func TestPerfNoOverflow(t *testing.T) {
 	query := func (key string) (string,bool) {
 		return key, true
 	}
-	ybc := quixote.MakeQuixoteCache(query, 	10* time.Millisecond, 2 * time.Minute, 1025)
+	ybc := quixote.MakeQuixoteCache(query, 	5* time.Millisecond, 2 * time.Minute, 1024)
 
-	for j:=0; j<2048; j++ {
+	for j:=0; j<65536; j++ {
 		for i:=0; i<1024; i++ {
 			key := fmt.Sprintf("key:%d", i)
 			res,ok := ybc.Get(key)
