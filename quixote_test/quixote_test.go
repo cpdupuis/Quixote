@@ -166,5 +166,12 @@ func TestPerfNoOverflow(t *testing.T) {
 			}
 		}
 	}
-	ybc.Stats().Dump()
+	stats := ybc.Stats()
+	stats.Dump()
+	if stats.CacheHitCount < 94 {
+		t.Errorf("Low cache hit count. Expected 94, got %d", stats.CacheHitCount)
+	}
+	if stats.UnexpiredEvictionCount > 3000000 {
+		t.Errorf("Expected less eviction: %d", stats.UnexpiredEvictionCount)
+	}
 }
