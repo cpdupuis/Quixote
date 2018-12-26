@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sync"
 	"time"
+	"math/rand"
 )
 
 // It's just a basic cache.
@@ -13,6 +14,7 @@ import (
 type cacheItem struct {
 	value string
 	createTime time.Time
+	id uint64
 }
 
 type YabasicCache interface {
@@ -21,9 +23,14 @@ type YabasicCache interface {
 	Stats()
 }
 
+type timelineItem struct {
+	key *string
+	id uint64
+}
+
 type cache struct {
 	index map[string]*cacheItem // protected by mutex.
-	timeline []*string // circular buffer
+	timeline []timelineItem // circular buffer
 	timelineHead int // start of timeline
 	timelineTail int // one past end of timeline
 	timelineLen int // max number of elements
@@ -51,14 +58,16 @@ func MakeYabasicCache(queryFunc func(string) (string,bool), softLimit time.Durat
 		softLimit: softLimit, 
 		hardLimit: hardLimit,
 		timelineLen: maxCount,
-		timeline: make([]*string, maxCount),
+		timeline: make([]timelineItem, maxCount),
 	}
 }
 
 
-func (c *cache) freeHead() {
-	delete(c.index, *c.timeline[c.timelineHead])
-	c.timeline[c.timelineHead] = nil
+func (c *cache) freeHead(freeItem bool) {
+	if freeItem {
+		delete(c.index, *(c.timeline[c.timelineHead].key))
+	}
+	c.timeline[c.timelineHead] = timelineItem{key:nil,id:0}
 	c.timelineHead = (c.timelineHead + 1) % c.timelineLen
 	c.count--
 }
@@ -71,13 +80,16 @@ func (c *cache) makeSpace(now time.Time) {
 		if c.count == 0 {
 			return
 		}
-		key := c.timeline[c.timelineHead]
+		key := c.timeline[c.timelineHead].key
 		ci := c.index[*key]
 		if ci == nil {
-			c.freeHead()
+			c.freeHead(false)
+		} else if ci.id != c.timeline[c.timelineHead].id {
+			// don't free the item! This is an obsoleve timeline item
+			c.freeHead(false)
 		} else if ci.createTime.Add(c.hardLimit).Before(now) {
 			// item is past its limit. Let's free it up!
-			c.freeHead()
+			c.freeHead(true)
 		} else {
 			break
 		}
@@ -85,12 +97,13 @@ func (c *cache) makeSpace(now time.Time) {
 	// If there is still no space, let's make some.
 	if c.timelineTail == c.timelineHead {
 		c.unexpiredEvictionCount++
-		c.freeHead()
+		c.freeHead(true)
 	}
 }
 
-func (c *cache) addToTimeline(key *string) {
-	c.timeline[c.timelineTail] = key
+func (c *cache) addToTimeline(key *string, id uint64) {
+	c.timeline[c.timelineTail].key = key
+	c.timeline[c.timelineTail].id = id
 	c.timelineTail = (c.timelineTail + 1) % c.timelineLen
 	c.count++
 }
@@ -98,11 +111,12 @@ func (c *cache) addToTimeline(key *string) {
 func (c *cache) refresh(key string, now time.Time) (string,bool) {
 	val,ok := c.queryFunc(key)
 	if ok {
-		ci := &cacheItem{value:val, createTime: now}
+		id := rand.Uint64()
+		ci := &cacheItem{value:val, createTime: now, id: id}
 		c.mutex.Lock()
 		c.makeSpace(now)
 		c.index[key] = ci
-		c.addToTimeline(&key)
+		c.addToTimeline(&key, id)
 		c.mutex.Unlock()
 		return val, true
 	} else {
