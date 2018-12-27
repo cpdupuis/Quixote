@@ -12,6 +12,7 @@ type Stats struct {
 	UnexpiredEvictionCount int // Count of items that were evicted before reaching their hard expiration.
 }
 
+// Output the statistics.
 func (s Stats) Dump() {
 	calls := s.CacheHitCount + s.CacheMissCount + s.CacheRescueCount
 	fmt.Printf("Cache hit count: %d Percent: %d\n", s.CacheHitCount, (s.CacheHitCount*100)/calls)

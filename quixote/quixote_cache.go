@@ -117,6 +117,7 @@ func (c *cache) addToTimeline(key *string, id uint64) {
 	c.count++
 }
 
+// Internal function to retrieve a fresh value and update the cache with it.
 func (c *cache) refresh(key string, now time.Time) (string,bool) {
 	val,ok := c.queryFunc(key)
 	if ok {
@@ -134,7 +135,8 @@ func (c *cache) refresh(key string, now time.Time) (string,bool) {
 	}
 }
 
-
+// Get is the public interface for Quixote. Get fetches fresh values from the source
+// as needed and stores them to satisfy future requests, and it returns a value if available. 
 func (c *cache) Get(key string) (string, bool) {
 	c.mutex.RLock()
 	cacheVal := c.index[key]
@@ -164,6 +166,7 @@ func (c *cache) Get(key string) (string, bool) {
 	return c.refresh(key, now)
 }
 
+// Print out details of the cache state for debugging purposes
 func (c *cache) Dump() {
 	fmt.Printf("Index:\n")
 	for k,v := range(c.index) {
@@ -176,6 +179,7 @@ func (c *cache) Dump() {
 	fmt.Printf("timeline %v\n", c.timeline)
 }
 
+// Return current statistics about cache performance.
 func (c *cache) Stats() Stats {
 	return c.stats
 }
