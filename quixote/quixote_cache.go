@@ -17,31 +17,39 @@ type cacheItem struct {
 	id uint64
 }
 
+// Public interface, returned by MakeQuixoteCache
 type QuixoteCache interface {
 	Get(string) (string,bool)
 	Dump()
 	Stats() Stats
 }
 
+// An entry in the timeline circular buffer
 type timelineItem struct {
-	key *string
-	id uint64
+	key *string // Pointer to the item's key
+	id uint64 // id matches a particular item value
 }
 
 type cache struct {
+	queryFunc func(string) (string,bool) // returns the content and whether there was any content
 	index map[string]*cacheItem // protected by mutex.
-	timeline []timelineItem // circular buffer
+	timeline []timelineItem // circular buffer for managing hard expiration
 	timelineHead int // start of timeline
 	timelineTail int // one past end of timeline
 	timelineLen int // max number of elements
-	queryFunc func(string) (string,bool) // returns the content and whether there was any content
+	count int // number of items currently in the cache
+	stats Stats // cache statistics
 	softLimit time.Duration // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
 	hardLimit time.Duration // after the hardLimit, the cached value is removed.
-	mutex sync.RWMutex
-	count int
-	stats Stats
+	mutex sync.RWMutex // mutex guarding index, timeline, timelineHead, timelineTail, count, and stats
 }
 
+// Create a new cache that calls queryFunc to get results from the source.
+// Parameters:
+// - queryFunc: the func that calls the source service to get current values.
+// - softLimit: the age at which an item is considered stale and needing to be refreshed.
+// - hardLimit: the age at which a cached item will be removed from the cache.
+// - maxCount: the maximum number of items that can be stored in this cache.
 func MakeQuixoteCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) QuixoteCache {
 	if maxCount < 2 {
 		panic("maxCount must be at least 2.")
@@ -60,6 +68,8 @@ func MakeQuixoteCache(queryFunc func(string) (string,bool), softLimit time.Durat
 }
 
 
+// Internal method to free the item currently referenced in the first entry of the timeline circular buffer. Must
+// be called inside the write-lock
 func (c *cache) freeHead(freeItem bool) {
 	if freeItem {
 		delete(c.index, *(c.timeline[c.timelineHead].key))
@@ -69,7 +79,7 @@ func (c *cache) freeHead(freeItem bool) {
 	c.count--
 }
 
-// Must be called inside the write-lock
+// Internal method to free up space in the cache. Must be called inside the write-lock.
 func (c *cache) makeSpace(now time.Time) {
 	// first, clean up any entries past the hard limit
 	for {
@@ -98,6 +108,8 @@ func (c *cache) makeSpace(now time.Time) {
 	}
 }
 
+// Internal method to write a reference to the given key and id as the new last element of the timeline
+// circular buffer. Must be called witin the write-lock.
 func (c *cache) addToTimeline(key *string, id uint64) {
 	c.timeline[c.timelineTail].key = key
 	c.timeline[c.timelineTail].id = id
