@@ -7,7 +7,7 @@ import (
 	"math/rand"
 )
 
-// It's just a basic cache.
+// QuixoteCache is just a basic cache.
 // Eviction policy is oldest-first. Supports hard limit on age of items, as well as soft
 // limit. When the soft limit is reached, the cache will attempt to refresh the item from the
 // source, but it will return the cached item if the refresh fails.
@@ -17,14 +17,14 @@ type cacheItem struct {
 	id uint64
 }
 
-// Public interface, returned by MakeQuixoteCache
+// QuixoteCache is the public interface, returned by MakeQuixoteCache
 type QuixoteCache interface {
 	Get(string) (string,bool)
 	Dump()
 	Stats() Stats
 }
 
-// An entry in the timeline circular buffer
+// timelineItem is an entry in the timeline circular buffer
 type timelineItem struct {
 	key *string // Pointer to the item's key
 	id uint64 // id matches a particular item value
@@ -44,7 +44,7 @@ type cache struct {
 	mutex sync.RWMutex // mutex guarding index, timeline, timelineHead, timelineTail, count, and stats
 }
 
-// Create a new cache that calls queryFunc to get results from the source.
+// MakeQuixoteCache creates a new cache that calls queryFunc to get results from the source.
 // Parameters:
 // - queryFunc: the func that calls the source service to get current values.
 // - softLimit: the age at which an item is considered stale and needing to be refreshed.
@@ -68,7 +68,7 @@ func MakeQuixoteCache(queryFunc func(string) (string,bool), softLimit time.Durat
 }
 
 
-// Internal method to free the item currently referenced in the first entry of the timeline circular buffer. Must
+// freeHead is an internal method to free the item currently referenced in the first entry of the timeline circular buffer. Must
 // be called inside the write-lock
 func (c *cache) freeHead(freeItem bool) {
 	if freeItem {
@@ -79,7 +79,7 @@ func (c *cache) freeHead(freeItem bool) {
 	c.count--
 }
 
-// Internal method to free up space in the cache. Must be called inside the write-lock.
+// makeSpace is an internal method to free up space in the cache. Must be called inside the write-lock.
 func (c *cache) makeSpace(now time.Time) {
 	// first, clean up any entries past the hard limit
 	for {
@@ -108,7 +108,7 @@ func (c *cache) makeSpace(now time.Time) {
 	}
 }
 
-// Internal method to write a reference to the given key and id as the new last element of the timeline
+// addToTimeline is an internal method to write a reference to the given key and id as the new last element of the timeline
 // circular buffer. Must be called witin the write-lock.
 func (c *cache) addToTimeline(key *string, id uint64) {
 	c.timeline[c.timelineTail].key = key
@@ -117,7 +117,7 @@ func (c *cache) addToTimeline(key *string, id uint64) {
 	c.count++
 }
 
-// Internal function to retrieve a fresh value and update the cache with it.
+// refresh is an internal function to retrieve a fresh value and update the cache with it.
 func (c *cache) refresh(key string, now time.Time) (string,bool) {
 	val,ok := c.queryFunc(key)
 	if ok {
@@ -166,7 +166,7 @@ func (c *cache) Get(key string) (string, bool) {
 	return c.refresh(key, now)
 }
 
-// Print out details of the cache state for debugging purposes
+// Dump prints out details of the cache state for debugging purposes
 func (c *cache) Dump() {
 	fmt.Printf("Index:\n")
 	for k,v := range(c.index) {
@@ -179,7 +179,7 @@ func (c *cache) Dump() {
 	fmt.Printf("timeline %v\n", c.timeline)
 }
 
-// Return current statistics about cache performance.
+// Stats returns current statistics about cache performance.
 func (c *cache) Stats() Stats {
 	return c.stats
 }
