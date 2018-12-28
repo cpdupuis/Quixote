@@ -2,9 +2,9 @@ package quixote
 
 import (
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
-	"math/rand"
 )
 
 // QuixoteCache is just a basic cache.
@@ -12,14 +12,14 @@ import (
 // limit. When the soft limit is reached, the cache will attempt to refresh the item from the
 // source, but it will return the cached item if the refresh fails.
 type cacheItem struct {
-	value string
+	value      string
 	createTime time.Time
-	id uint64
+	id         uint64
 }
 
 // QuixoteCache is the public interface, returned by MakeQuixoteCache
 type QuixoteCache interface {
-	Get(string) (string,bool)
+	Get(string) (string, bool)
 	Dump()
 	Stats() Stats
 }
@@ -27,21 +27,21 @@ type QuixoteCache interface {
 // timelineItem is an entry in the timeline circular buffer
 type timelineItem struct {
 	key *string // Pointer to the item's key
-	id uint64 // id matches a particular item value
+	id  uint64  // id matches a particular item value
 }
 
-type cache struct {
-	queryFunc func(string) (string,bool) // returns the content and whether there was any content
-	index map[string]*cacheItem // protected by mutex.
-	timeline []timelineItem // circular buffer for managing hard expiration
-	timelineHead int // start of timeline
-	timelineTail int // one past end of timeline
-	timelineLen int // max number of elements
-	count int // number of items currently in the cache
-	stats Stats // cache statistics
-	softLimit time.Duration // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
-	hardLimit time.Duration // after the hardLimit, the cached value is removed.
-	mutex sync.RWMutex // mutex guarding index, timeline, timelineHead, timelineTail, count, and stats
+type Cache struct {
+	queryFunc    func(string) (string, bool) // returns the content and whether there was any content
+	index        map[string]*cacheItem       // protected by mutex.
+	timeline     []timelineItem              // circular buffer for managing hard expiration
+	timelineHead int                         // start of timeline
+	timelineTail int                         // one past end of timeline
+	timelineLen  int                         // max number of elements
+	count        int                         // number of items currently in the cache
+	stats        Stats                       // cache statistics
+	softLimit    time.Duration               // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
+	hardLimit    time.Duration               // after the hardLimit, the cached value is removed.
+	mutex        sync.RWMutex                // mutex guarding index, timeline, timelineHead, timelineTail, count, and stats
 }
 
 // MakeQuixoteCache creates a new cache that calls queryFunc to get results from the source.
@@ -50,37 +50,36 @@ type cache struct {
 // - softLimit: the age at which an item is considered stale and needing to be refreshed.
 // - hardLimit: the age at which a cached item will be removed from the cache.
 // - maxCount: the maximum number of items that can be stored in this cache.
-func MakeQuixoteCache(queryFunc func(string) (string,bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) QuixoteCache {
+func MakeQuixoteCache(queryFunc func(string) (string, bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) QuixoteCache {
 	if maxCount < 2 {
 		panic("maxCount must be at least 2.")
 	}
 	if softLimit > hardLimit {
 		panic("hardLimit must be longer than softLimit")
 	}
-	return &cache{
-		index: make(map[string]*cacheItem), 
-		queryFunc: queryFunc, 
-		softLimit: softLimit, 
-		hardLimit: hardLimit,
+	return &Cache{
+		index:       make(map[string]*cacheItem),
+		queryFunc:   queryFunc,
+		softLimit:   softLimit,
+		hardLimit:   hardLimit,
 		timelineLen: maxCount,
-		timeline: make([]timelineItem, maxCount),
+		timeline:    make([]timelineItem, maxCount),
 	}
 }
 
-
 // freeHead is an internal method to free the item currently referenced in the first entry of the timeline circular buffer. Must
 // be called inside the write-lock
-func (c *cache) freeHead(freeItem bool) {
+func (c *Cache) freeHead(freeItem bool) {
 	if freeItem {
 		delete(c.index, *(c.timeline[c.timelineHead].key))
 	}
-	c.timeline[c.timelineHead] = timelineItem{key:nil,id:0}
+	c.timeline[c.timelineHead] = timelineItem{key: nil, id: 0}
 	c.timelineHead = (c.timelineHead + 1) % c.timelineLen
 	c.count--
 }
 
 // makeSpace is an internal method to free up space in the cache. Must be called inside the write-lock.
-func (c *cache) makeSpace(now time.Time) {
+func (c *Cache) makeSpace(now time.Time) {
 	// first, clean up any entries past the hard limit
 	for {
 		// stop if the timeline is empty
@@ -110,7 +109,7 @@ func (c *cache) makeSpace(now time.Time) {
 
 // addToTimeline is an internal method to write a reference to the given key and id as the new last element of the timeline
 // circular buffer. Must be called witin the write-lock.
-func (c *cache) addToTimeline(key *string, id uint64) {
+func (c *Cache) addToTimeline(key *string, id uint64) {
 	c.timeline[c.timelineTail].key = key
 	c.timeline[c.timelineTail].id = id
 	c.timelineTail = (c.timelineTail + 1) % c.timelineLen
@@ -118,11 +117,11 @@ func (c *cache) addToTimeline(key *string, id uint64) {
 }
 
 // refresh is an internal function to retrieve a fresh value and update the cache with it.
-func (c *cache) refresh(key string, now time.Time) (string,bool) {
-	val,ok := c.queryFunc(key)
+func (c *Cache) refresh(key string, now time.Time) (string, bool) {
+	val, ok := c.queryFunc(key)
 	if ok {
 		id := rand.Uint64()
-		ci := &cacheItem{value:val, createTime: now, id: id}
+		ci := &cacheItem{value: val, createTime: now, id: id}
 		c.mutex.Lock()
 		c.makeSpace(now)
 		c.index[key] = ci
@@ -131,13 +130,13 @@ func (c *cache) refresh(key string, now time.Time) (string,bool) {
 		return val, true
 	} else {
 		// no cached result, sorry
-		return "",false
+		return "", false
 	}
 }
 
 // Get is the public interface for Quixote. Get fetches fresh values from the source
-// as needed and stores them to satisfy future requests, and it returns a value if available. 
-func (c *cache) Get(key string) (string, bool) {
+// as needed and stores them to satisfy future requests, and it returns a value if available.
+func (c *Cache) Get(key string) (string, bool) {
 	c.mutex.RLock()
 	cacheVal := c.index[key]
 	c.mutex.RUnlock()
@@ -147,9 +146,9 @@ func (c *cache) Get(key string) (string, bool) {
 		if since < c.softLimit {
 			// Just return the cached value
 			c.stats.CacheHitCount++
-			return cacheVal.value,true
+			return cacheVal.value, true
 		} else if since < c.hardLimit {
-			val,ok := c.refresh(key, now)
+			val, ok := c.refresh(key, now)
 			if ok {
 				c.stats.CacheMissCount++
 				// Hey, we refreshed successfully!
@@ -167,9 +166,9 @@ func (c *cache) Get(key string) (string, bool) {
 }
 
 // Dump prints out details of the cache state for debugging purposes
-func (c *cache) Dump() {
+func (c *Cache) Dump() {
 	fmt.Printf("Index:\n")
-	for k,v := range(c.index) {
+	for k, v := range c.index {
 		fmt.Printf("  %s : %s\n", k, v.value)
 	}
 	fmt.Printf("timelineLen: %d\n", c.timelineLen)
@@ -180,6 +179,6 @@ func (c *cache) Dump() {
 }
 
 // Stats returns current statistics about cache performance.
-func (c *cache) Stats() Stats {
+func (c *Cache) Stats() Stats {
 	return c.stats
 }
