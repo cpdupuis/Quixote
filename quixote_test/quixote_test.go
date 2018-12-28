@@ -167,7 +167,7 @@ func TestPerfNoOverflow(t *testing.T) {
 		}
 	}
 	stats := ybc.Stats()
-	stats.Dump()
+	fmt.Printf("Stats: %v\n", stats)
 	if stats.CacheHitCount < 94 {
 		t.Errorf("Low cache hit count. Expected 94, got %d", stats.CacheHitCount)
 	}

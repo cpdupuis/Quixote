@@ -1,7 +1,8 @@
 package quixote
 
 import (
-	"fmt"
+	"strings"
+	"encoding/json"
 )
 
 
@@ -12,11 +13,14 @@ type Stats struct {
 	UnexpiredEvictionCount int // Count of items that were evicted before reaching their hard expiration.
 }
 
-// Dump outputs the statistics.
-func (s Stats) Dump() {
-	calls := s.CacheHitCount + s.CacheMissCount + s.CacheRescueCount
-	fmt.Printf("Cache hit count: %d Percent: %d\n", s.CacheHitCount, (s.CacheHitCount*100)/calls)
-	fmt.Printf("Cache miss count: %d Percent: %d\n", s.CacheMissCount, (s.CacheMissCount*100)/calls)
-	fmt.Printf("Cache rescue count: %d Percent: %d\n", s.CacheRescueCount, (s.CacheRescueCount*100)/calls)
-	fmt.Printf("Unexpired eviction count: %d\n", s.UnexpiredEvictionCount)
+// String encodes the Stats object as JSON.
+func (s Stats) String() string {
+	sb := &strings.Builder{}
+	encoder := json.NewEncoder(sb)
+	err := encoder.Encode(s)
+	if err != nil {
+		panic("Error: failed to encode stats")
+	} else {
+		return sb.String()
+	}
 }
