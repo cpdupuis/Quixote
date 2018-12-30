@@ -1,4 +1,3 @@
-package quixote
 /*
 
 Package quixote is an in-process cache supporting oldest-first cache eviction with a two-stage
@@ -12,3 +11,4 @@ set to zero, so that Quixote will return cached values only in the case of the s
 dependency being unavailable.
 
 */
+package quixote
