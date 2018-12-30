@@ -27,7 +27,7 @@ type QuixoteCache interface {
 type Cache struct {
 	queryFunc    func(string) (string, bool) // returns the content and whether there was any content
 	index        map[string]*cacheItem       // protected by mutex.
-	timeline	 *ExpiryTimeline	// timeline for expiring items in the cache
+	timeline	 ExpiryTimeline	// timeline for expiring items in the cache
 	count        int                         // number of items currently in the cache
 	maxCount	int	// maximum number of items in the cache
 	stats        Stats                       // cache statistics
