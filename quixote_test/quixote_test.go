@@ -118,34 +118,6 @@ func TestCacheCapacity(t *testing.T) {
 	}
 }
 
-func TestCacheEviction(t *testing.T) {
-	value := "un"
-	ok := true
-	query := func (key string) (string,bool) {
-		return value, ok
-	}	
-	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
-	_,_ = ybc.Get("one")
-	value = "deux"
-	_,_ = ybc.Get("two")
-	value = "trois"
-	_,_ = ybc.Get("three")
-
-	value = "new"
-	str,_ := ybc.Get("three")
-	if str != "trois" {
-		t.Fail()
-	}
-	str,_ = ybc.Get("two")
-	if str != "deux" {
-		t.Fail()
-	}
-	str,_ = ybc.Get("one")
-	if str != "new" {
-		// old value should have been evicted
-		t.Errorf("Wrong value: %s", str)
-	}
-}
 
 func TestPerfNoOverflow(t *testing.T) {
 	query := func (key string) (string,bool) {
@@ -153,7 +125,7 @@ func TestPerfNoOverflow(t *testing.T) {
 	}
 	ybc := quixote.MakeQuixoteCache(query, 	5* time.Millisecond, 2 * time.Minute, 1024)
 
-	for j:=0; j<4096; j++ {
+	for j:=0; j<1024; j++ {
 		for i:=0; i<1024; i++ {
 			key := fmt.Sprintf("key:%d", i)
 			res,ok := ybc.Get(key)
@@ -170,8 +142,5 @@ func TestPerfNoOverflow(t *testing.T) {
 	fmt.Printf("Stats: %v\n", stats)
 	if stats.CacheHitCount < 94 {
 		t.Errorf("Low cache hit count. Expected 94, got %d", stats.CacheHitCount)
-	}
-	if stats.UnexpiredEvictionCount > 3000000 {
-		t.Errorf("Expected less eviction: %d", stats.UnexpiredEvictionCount)
 	}
 }

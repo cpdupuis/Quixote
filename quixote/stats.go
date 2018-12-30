@@ -7,10 +7,10 @@ import (
 
 
 type Stats struct {
-	CacheHitCount int // Count of requests that were fulfilled from cached items before their soft expiration
-	CacheMissCount int // Count of items that were fulfilled by calling the queryFunc
-	CacheRescueCount int // Count of requests that were fulfilled from cached items after their soft expiration
-	UnexpiredEvictionCount int // Count of items that were evicted before reaching their hard expiration.
+	CacheHitCount int		// Count of requests that were fulfilled from cached items before their soft expiration
+	CacheMissCount int		// Count of items that were fulfilled by calling the queryFunc
+	CacheRescueCount int	// Count of requests that were fulfilled from cached items after their soft expiration
+	CacheNoRoomCount int	// Count of responses that were not cached due to the cache being full.
 }
 
 // String encodes the Stats object as JSON.

@@ -27,8 +27,9 @@ type QuixoteCache interface {
 type Cache struct {
 	queryFunc    func(string) (string, bool) // returns the content and whether there was any content
 	index        map[string]*cacheItem       // protected by mutex.
-	timeline	 *ExpiryTimeline
+	timeline	 *ExpiryTimeline	// timeline for expiring items in the cache
 	count        int                         // number of items currently in the cache
+	maxCount	int	// maximum number of items in the cache
 	stats        Stats                       // cache statistics
 	softLimit    time.Duration               // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
 	hardLimit    time.Duration               // after the hardLimit, the cached value is removed.
@@ -51,6 +52,7 @@ func MakeQuixoteCache(queryFunc func(string) (string, bool), softLimit time.Dura
 	return &Cache{
 		index:       make(map[string]*cacheItem),
 		queryFunc:   queryFunc,
+		maxCount: maxCount,
 		softLimit:   softLimit,
 		hardLimit:   hardLimit,
 		timeline:	MakeExpiryTimeline(256, hardLimit),
@@ -103,7 +105,13 @@ func (c *Cache) Get(key string) (string, bool) {
 	}
 	c.stats.CacheMissCount++
 	// fallthrough: the cache didn't help us
-	return c.refresh(key, now, now)
+	if c.count < c.maxCount {
+		// We have space, let's put it in our cache!
+		return c.refresh(key, now, now)
+	} else {
+		c.stats.CacheNoRoomCount++
+		return c.queryFunc(key)
+	}
 }
 
 // Dump prints out details of the cache state for debugging purposes
