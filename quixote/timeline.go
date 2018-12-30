@@ -16,21 +16,24 @@ type expiryItem struct {
 
 type addrTime int64
 
-type expiryTimeline struct {
+type ExpiryTimeline struct {
 	expiryItems []expiryItem // circular buffer. Going forward in buffer order is going back in time.
 	newestItem int
 	newestTime addrTime
 	count int // number of items in the circular buffer, constant value
-	timeResolutionMillis int64 // at what resolution (in time) does the timeline chunk time?
+	timeResolutionNanos int64 // at what resolution (in time) does the timeline chunk time?
 }
 
 
-func (et *expiryTimeline) addressableTime(t time.Time) addrTime {
-	millis := t.UnixNano() / 1000000
-	return addrTime(millis / et.timeResolutionMillis)
+func calcAddrTime(t time.Time, resolutionNanos int64) addrTime {
+	return addrTime(t.UnixNano() / resolutionNanos)
 }
 
-func (et *expiryTimeline) findExpiryItem(at addrTime) *expiryItem {
+func (et *ExpiryTimeline) addressableTime(t time.Time) addrTime {
+	return calcAddrTime(t, et.timeResolutionNanos)
+}
+
+func (et *ExpiryTimeline) findExpiryItem(at addrTime) *expiryItem {
 	offset := et.newestTime - at
 	if offset < 0 {
 		return nil
@@ -42,7 +45,7 @@ func (et *expiryTimeline) findExpiryItem(at addrTime) *expiryItem {
 	}
 }
 
-func (et *expiryTimeline) ReplaceItem(key *string, timeOld time.Time, timeNew time.Time) bool {
+func (et *ExpiryTimeline) ReplaceItem(key *string, timeOld time.Time, timeNew time.Time) bool {
 	addrTimeOld := et.addressableTime(timeOld)
 	addrTimeNew := et.addressableTime(timeNew)
 	if expiryItemOld := et.findExpiryItem(addrTimeOld); expiryItemOld != nil {
@@ -57,15 +60,42 @@ func (et *expiryTimeline) ReplaceItem(key *string, timeOld time.Time, timeNew ti
 	}
 }
 
+func (et *ExpiryTimeline) InvalidateItem(key *string, timeOld time.Time) {
+	addrTimeOld := et.addressableTime(timeOld)
+	if expiryItemOld := et.findExpiryItem(addrTimeOld); expiryItemOld != nil {
+		delete(expiryItemOld.itemSet, key)
+	}
+}
+
 // Move the head of the buffer up to now.
-func (et *expiryTimeline) ExpireItems(now time.Time) {
+func (et *ExpiryTimeline) ExpireItems(now time.Time) {
 	addrNow := et.addressableTime(now)
 	for addrNow < et.newestTime {
 		et.newestTime++
 		et.newestItem = (et.newestItem + 1) % et.count
-		// This is the new head. Clear out old items by replacing the entire map.
-		et.expiryItems[et.newestItem].itemSet = make(map[*string]bool)
+		// This is the new head. Clear out old items.
+		itemSet := &et.expiryItems[et.newestItem].itemSet
+		for k := range *itemSet {
+			delete(*itemSet, k)
+		}
 	}
 	// All set!
+}
+
+func MakeExpiryTimeline(count int, expiryLifetime time.Duration) *ExpiryTimeline {
+	resolutionNanos := expiryLifetime.Nanoseconds() / int64(count)
+	now := time.Now()
+	addrNow := calcAddrTime(now, resolutionNanos)
+	et := &ExpiryTimeline{
+		count: count,
+		timeResolutionNanos: resolutionNanos,
+		newestItem: 0,
+		newestTime: addrNow,
+		expiryItems: make([]expiryItem, count),
+	}
+	for i:=0; i<count; i++ {
+		et.expiryItems[i].itemSet = make(map[*string]bool)
+	}
+	return et
 }
 
