@@ -2,7 +2,6 @@ package quixote
 
 import (
 	"time"
-	"fmt"
 )
 
 
@@ -36,7 +35,6 @@ func (et *ExpiryTimeline) addressableTime(t time.Time) addrTime {
 
 func (et *ExpiryTimeline) findExpiryItem(at addrTime) *expiryItem {
 	offset := et.newestTime - at
-	fmt.Printf("offset: %v, at: %v, newestTime: %v\n", offset, at, et.newestTime)
 	if offset < 0 {
 		
 		return nil
