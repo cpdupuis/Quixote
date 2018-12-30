@@ -67,11 +67,22 @@ func (c *Cache) refresh(key string, now time.Time, timeOld time.Time) (string, b
 		ci := &cacheItem{value: val, createTime: now, id: id}
 		c.mutex.Lock()
 		c.index[key] = ci
-		// TODO: update timeline!
-		c.timeline.ReplaceItem(&key, timeOld, now)
+		// Clear expired items
+		c.timeline.ExpireItems(now, func(akey string) {
+			delete(c.index, akey)
+		})
+		// And replace!
+		c.timeline.ReplaceItem(key, timeOld, now)
 		c.mutex.Unlock()
 		return val, true
 	} else {
+		// Clear expired items
+		c.mutex.Lock()
+		c.timeline.ExpireItems(now, func(akey string) {
+			delete(c.index, akey)
+		})
+		c.mutex.Unlock()
+		
 		// no cached result, sorry
 		return "", false
 	}
@@ -96,10 +107,14 @@ func (c *Cache) Get(key string) (string, bool) {
 				c.stats.CacheMissCount++
 				// Hey, we refreshed successfully!
 				return val, true
-			} else {
+			} else if since < c.hardLimit {
 				c.stats.CacheRescueCount++
 				// We didn't refresh, but it's still OK.
 				return cacheVal.value, true
+			} else {
+				// Too old!
+				c.stats.CacheMissCount++
+				return val,ok
 			}
 		}
 	}

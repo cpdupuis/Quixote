@@ -11,7 +11,7 @@ import (
 // the front, and all of its entries are purged.
 
 type expiryItem struct {
-	itemSet map[*string]bool
+	itemSet map[string]bool
 }
 
 type addrTime int64
@@ -47,7 +47,7 @@ func (et *ExpiryTimeline) findExpiryItem(at addrTime) *expiryItem {
 }
 
 
-func (et *ExpiryTimeline) mutator(key *string, timeOld time.Time, timeNew time.Time, doAdd bool, doDelete bool) bool {
+func (et *ExpiryTimeline) mutator(key string, timeOld time.Time, timeNew time.Time, doAdd bool, doDelete bool) bool {
 	if doDelete {
 		addrTimeOld := et.addressableTime(timeOld)
 		if expiryItemOld := et.findExpiryItem(addrTimeOld); expiryItemOld != nil {
@@ -67,29 +67,29 @@ func (et *ExpiryTimeline) mutator(key *string, timeOld time.Time, timeNew time.T
 
 }
 
-func (et *ExpiryTimeline) AddItem(key *string, timeNew time.Time) bool {
+func (et *ExpiryTimeline) AddItem(key string, timeNew time.Time) bool {
 	return et.mutator(key, timeNew, timeNew, true, false)
 }
 
-func (et *ExpiryTimeline) ReplaceItem(key *string, timeOld time.Time, timeNew time.Time) bool {
+func (et *ExpiryTimeline) ReplaceItem(key string, timeOld time.Time, timeNew time.Time) bool {
 	return et.mutator(key, timeOld, timeNew, true, true)
 }
 
-func (et *ExpiryTimeline) DeleteItem(key *string, timeOld time.Time) {
+func (et *ExpiryTimeline) DeleteItem(key string, timeOld time.Time) {
 	et.mutator(key, timeOld, timeOld, false, true)
 }
 
 // Move the head of the buffer up to now.
-func (et *ExpiryTimeline) ExpireItems(now time.Time, invalidator func(*string)) {
+func (et *ExpiryTimeline) ExpireItems(now time.Time, invalidator func(string)) {
 	addrNow := et.addressableTime(now)
 	for addrNow > et.newestTime {
 		et.newestTime++
 		et.newestItem = (et.newestItem + 1) % et.count
 		// This is the new head. Clear out old items.
-		itemSet := &et.expiryItems[et.newestItem].itemSet
-		for k := range *itemSet {
+		itemSet := et.expiryItems[et.newestItem].itemSet
+		for k := range itemSet {
 			invalidator(k)
-			delete(*itemSet, k)
+			delete(itemSet, k)
 		}
 	}
 	// All set!
@@ -107,7 +107,7 @@ func MakeExpiryTimeline(count int, expiryLifetime time.Duration) *ExpiryTimeline
 		expiryItems: make([]expiryItem, count),
 	}
 	for i:=0; i<count; i++ {
-		et.expiryItems[i].itemSet = make(map[*string]bool)
+		et.expiryItems[i].itemSet = make(map[string]bool)
 	}
 	return et
 }

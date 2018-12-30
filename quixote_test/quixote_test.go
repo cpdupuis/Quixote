@@ -83,16 +83,12 @@ func TestFailedHardRefresh(t *testing.T) {
 		t.Errorf("not value")
 	}
 	time.Sleep(2 * time.Microsecond)
-	value = ""
+	value = "something else"
 	ok = false
 	str,ok = ybc.Get("anything")
 	if ok {
-		t.Fail()
+		t.Errorf("Expected to be not OK")
 	}
-	if str != "" {
-		t.Errorf("not value %s", str)
-	}
-
 }
 
 func TestCacheCapacity(t *testing.T) {
@@ -125,7 +121,7 @@ func TestPerfNoOverflow(t *testing.T) {
 	}
 	ybc := quixote.MakeQuixoteCache(query, 	5* time.Millisecond, 2 * time.Minute, 1024)
 
-	for j:=0; j<1024; j++ {
+	for j:=0; j<4096; j++ {
 		for i:=0; i<1024; i++ {
 			key := fmt.Sprintf("key:%d", i)
 			res,ok := ybc.Get(key)

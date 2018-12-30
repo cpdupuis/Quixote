@@ -10,15 +10,14 @@ func TestAddOneExpireOne(t *testing.T) {
 	timeline := quixote.MakeExpiryTimeline(1, time.Second)
 	var isCalled = false
 	var isExpired = false
-	invalidator := func(key *string) {
+	invalidator := func(key string) {
 		isCalled = true
-		if *key == "foo" {
+		if key == "foo" {
 			isExpired = true
 		}
 	}
-	key := "foo"
 	now := time.Now()
-	ok := timeline.AddItem(&key, now)
+	ok := timeline.AddItem("foo", now)
 	if !ok {
 		t.Errorf("Failed to add")
 	}
@@ -35,15 +34,15 @@ func TestAddOneExpireOne(t *testing.T) {
 func TestAddOneDeleteOne(t *testing.T) {
 	timeline := quixote.MakeExpiryTimeline(1, time.Second)
 	var isExpired = false
-	invalidator := func(key *string) {
-		if *key == "foo" {
+	invalidator := func(key string) {
+		if key == "foo" {
 			isExpired = true
 		}
 	}
 	key := "foo"
 	now := time.Now()
-	timeline.AddItem(&key, now)
-	timeline.DeleteItem(&key, now)
+	timeline.AddItem(key, now)
+	timeline.DeleteItem(key, now)
 	later := now.Add(time.Second)
 	timeline.ExpireItems(later, invalidator)
 	if isExpired {
