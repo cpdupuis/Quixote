@@ -1,6 +1,6 @@
 /*
 
-Package quixote is an in-process cache supporting oldest-first cache eviction with a two-stage
+Quixote is an in-process cache supporting oldest-first cache eviction with a two-stage
 invalidation policy. The first stage is a "soft" invalidation, in which the cached value
 will be used only if no fresh value can be produced by the service dependency. The
 second stage is "hard" invalidation, in which the cached value is purged from the cache.
@@ -26,6 +26,6 @@ Using the cache:
 	if ok {
 		// Do something with result.
 	}
-	
+
 */
 package quixote
