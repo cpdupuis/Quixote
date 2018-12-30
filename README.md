@@ -1,5 +1,7 @@
 # Quixote: Caching at windmills
 
+[![GoDoc](https://godoc.org/github.com/cpdupuis/Quixote?status.svg)](https://godoc.org/github.com/cpdupuis/Quixote)
+
 Sometimes you want a cache to reduce the number of calls you make to
 a service dependency, and sometimes you want a cache to reduce the impact of
 an unreliable service dependency. Sometimes you want both.
