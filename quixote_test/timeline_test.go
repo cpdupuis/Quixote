@@ -6,14 +6,14 @@ import (
 	"time"
 )
 
-func Test(t *testing.T) {
+func TestAddOneExpireOne(t *testing.T) {
 	timeline := quixote.MakeExpiryTimeline(1, time.Second)
 	var isCalled = false
-	var isCorrect = false
+	var isExpired = false
 	invalidator := func(key *string) {
 		isCalled = true
 		if *key == "foo" {
-			isCorrect = true
+			isExpired = true
 		}
 	}
 	key := "foo"
@@ -27,7 +27,26 @@ func Test(t *testing.T) {
 	if !isCalled {
 		t.Errorf("Not called")
 	}
-	if !isCorrect {
+	if !isExpired {
 		t.Errorf("Not correct")
+	}
+}
+
+func TestAddOneDeleteOne(t *testing.T) {
+	timeline := quixote.MakeExpiryTimeline(1, time.Second)
+	var isExpired = false
+	invalidator := func(key *string) {
+		if *key == "foo" {
+			isExpired = true
+		}
+	}
+	key := "foo"
+	now := time.Now()
+	timeline.AddItem(&key, now)
+	timeline.DeleteItem(&key, now)
+	later := now.Add(time.Second)
+	timeline.ExpireItems(later, invalidator)
+	if isExpired {
+		t.Errorf("Item was already supposed to be deleted")
 	}
 }
