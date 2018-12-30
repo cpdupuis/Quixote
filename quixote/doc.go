@@ -10,5 +10,22 @@ service dependency is available. In the extreme case, the soft invalidation time
 set to zero, so that Quixote will return cached values only in the case of the service
 dependency being unavailable.
 
+Creating a cache:
+
+	query := func(key string) {...}
+	softLimit := 15 * time.Second
+	hardLimit := 30 * time.Minute
+	maxCount := 65536
+	cache := quixote.MakeQuixoteCache(query, softLimit, hardLimit, maxCount)
+
+Using the cache:
+
+	key := "{customerId=12345,orderId=67890}"
+	now := time.Now()
+	result,ok := cache.Get(key)
+	if ok {
+		// Do something with result.
+	}
+	
 */
 package quixote

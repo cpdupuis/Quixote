@@ -1,7 +1,6 @@
 package quixote
 
 import (
-	"fmt"
 	"math/rand"
 	"sync"
 	"time"
@@ -17,13 +16,8 @@ type cacheItem struct {
 	id         uint64
 }
 
-// QuixoteCache is the public interface, returned by MakeQuixoteCache
-type QuixoteCache interface {
-	Get(string) (string, bool)
-	Dump()
-	Stats() Stats
-}
 
+// Cache is the main entry point for QuixoteCache.
 type Cache struct {
 	queryFunc    func(string) (string, bool) // returns the content and whether there was any content
 	index        map[string]*cacheItem       // protected by mutex.
@@ -42,7 +36,7 @@ type Cache struct {
 // - softLimit: the age at which an item is considered stale and needing to be refreshed.
 // - hardLimit: the age at which a cached item will be removed from the cache.
 // - maxCount: the maximum number of items that can be stored in this cache.
-func MakeQuixoteCache(queryFunc func(string) (string, bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) QuixoteCache {
+func MakeQuixoteCache(queryFunc func(string) (string, bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) *Cache {
 	if maxCount < 2 {
 		panic("maxCount must be at least 2.")
 	}
@@ -129,13 +123,6 @@ func (c *Cache) Get(key string) (string, bool) {
 	}
 }
 
-// Dump prints out details of the cache state for debugging purposes
-func (c *Cache) Dump() {
-	fmt.Printf("Index:\n")
-	for k, v := range c.index {
-		fmt.Printf("  %s : %s\n", k, v.value)
-	}
-}
 
 // Stats returns current statistics about cache performance.
 func (c *Cache) Stats() Stats {
