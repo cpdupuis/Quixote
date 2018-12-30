@@ -24,6 +24,7 @@ type expiryTimeline struct {
 	timeResolutionNanos int64 // at what resolution (in time) does the timeline chunk time?
 }
 
+// ExpiryTimeline is an internal interface used by the cache to expire items.
 type ExpiryTimeline interface {
 	AddItem(key string, timeNew time.Time) bool
 	ReplaceItem(key string, timeOld time.Time, timeNew time.Time) bool
@@ -101,6 +102,8 @@ func (et *expiryTimeline) ExpireItems(now time.Time, invalidator func(string)) {
 	// All set!
 }
 
+// MakeExpiryTimeline is an internal function that generates the cache's
+// expiry timeline.
 func MakeExpiryTimeline(count int, expiryLifetime time.Duration) ExpiryTimeline {
 	resolutionNanos := expiryLifetime.Nanoseconds() / int64(count)
 	now := time.Now()
