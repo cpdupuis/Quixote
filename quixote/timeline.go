@@ -2,6 +2,7 @@ package quixote
 
 import (
 	"time"
+	"fmt"
 )
 
 
@@ -35,7 +36,9 @@ func (et *ExpiryTimeline) addressableTime(t time.Time) addrTime {
 
 func (et *ExpiryTimeline) findExpiryItem(at addrTime) *expiryItem {
 	offset := et.newestTime - at
+	fmt.Printf("offset: %v, at: %v, newestTime: %v\n", offset, at, et.newestTime)
 	if offset < 0 {
+		
 		return nil
 	} else if offset >= addrTime(et.count) {
 		return nil
@@ -45,37 +48,49 @@ func (et *ExpiryTimeline) findExpiryItem(at addrTime) *expiryItem {
 	}
 }
 
-func (et *ExpiryTimeline) ReplaceItem(key *string, timeOld time.Time, timeNew time.Time) bool {
-	addrTimeOld := et.addressableTime(timeOld)
-	addrTimeNew := et.addressableTime(timeNew)
-	if expiryItemOld := et.findExpiryItem(addrTimeOld); expiryItemOld != nil {
-		delete(expiryItemOld.itemSet, key)
+
+func (et *ExpiryTimeline) mutator(key *string, timeOld time.Time, timeNew time.Time, doAdd bool, doDelete bool) bool {
+	if doDelete {
+		addrTimeOld := et.addressableTime(timeOld)
+		if expiryItemOld := et.findExpiryItem(addrTimeOld); expiryItemOld != nil {
+			delete(expiryItemOld.itemSet, key)
+		}
 	}
-	if expiryItemNew := et.findExpiryItem(addrTimeNew); expiryItemNew != nil {
-		expiryItemNew.itemSet[key] = true
-		return true
-	} else {
-		// Sorry, we can't store a value that we don't know how to expire.
-		return false
+	if doAdd {
+		addrTimeNew := et.addressableTime(timeNew)
+		if expiryItemNew := et.findExpiryItem(addrTimeNew); expiryItemNew != nil {
+			expiryItemNew.itemSet[key] = true
+		} else {
+			// Sorry, we can't store a value that we don't know how to expire.
+			return false
+		}
 	}
+	return true
+
 }
 
-func (et *ExpiryTimeline) InvalidateItem(key *string, timeOld time.Time) {
-	addrTimeOld := et.addressableTime(timeOld)
-	if expiryItemOld := et.findExpiryItem(addrTimeOld); expiryItemOld != nil {
-		delete(expiryItemOld.itemSet, key)
-	}
+func (et *ExpiryTimeline) AddItem(key *string, timeNew time.Time) bool {
+	return et.mutator(key, timeNew, timeNew, true, false)
+}
+
+func (et *ExpiryTimeline) ReplaceItem(key *string, timeOld time.Time, timeNew time.Time) bool {
+	return et.mutator(key, timeOld, timeNew, true, true)
+}
+
+func (et *ExpiryTimeline) DeleteItem(key *string, timeOld time.Time) {
+	et.mutator(key, timeOld, timeOld, false, true)
 }
 
 // Move the head of the buffer up to now.
-func (et *ExpiryTimeline) ExpireItems(now time.Time) {
+func (et *ExpiryTimeline) ExpireItems(now time.Time, invalidator func(*string)) {
 	addrNow := et.addressableTime(now)
-	for addrNow < et.newestTime {
+	for addrNow > et.newestTime {
 		et.newestTime++
 		et.newestItem = (et.newestItem + 1) % et.count
 		// This is the new head. Clear out old items.
 		itemSet := &et.expiryItems[et.newestItem].itemSet
 		for k := range *itemSet {
+			invalidator(k)
 			delete(*itemSet, k)
 		}
 	}
