@@ -27,14 +27,6 @@ cached, with a soft expiry after 10 seconds, and a hard expiry after 15 minutes.
 cache has a maximum size of 256 items.
 
 ```
-package main
-
-import (
-    "fmt"
-    "time"
-    "github.com/cpdupuis/Quixote/quixote"
-)
-
 func callService(params string) (string,bool) {
     // Call a service, return the result as a string, as well as a boolean ok value
 }
@@ -42,11 +34,9 @@ func callService(params string) (string,bool) {
 func main() {
     cache := quixote.MakeQuixoteCache(callService, 10 * time.Second, 15 * time.Minute, 256)
     for {
-        res,ok := cache.Get("testing 123")
-        if !ok {
-            fmt.Printf("Error!\n")
-        } else {
-            fmt.Printf("Res: %s\n", res)
+        result,ok := cache.Get("testing 123")
+        if ok {
+            // Use result
         }
     }
 }
