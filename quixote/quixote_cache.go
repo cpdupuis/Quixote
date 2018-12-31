@@ -89,38 +89,54 @@ func (c *Cache) Get(key string) (string, bool) {
 	cacheVal := c.index[key]
 	c.mutex.RUnlock()
 	now := time.Now()
+	var cacheMiss int
+	var cacheHit int
+	var cacheRescue int
+	var cacheNoRoom int
+
+	var result string
+	var resOk bool
 	if cacheVal != nil {
 		since := now.Sub(cacheVal.createTime)
 		if since < c.softLimit {
 			// Just return the cached value
-			c.stats.CacheHitCount++
-			return cacheVal.value, true
+			cacheHit = 1
+			result,resOk =  cacheVal.value, true
 		} else {
 			val, ok := c.refresh(key, now, cacheVal.createTime)
 			if ok {
-				c.stats.CacheMissCount++
+				cacheMiss = 1
 				// Hey, we refreshed successfully!
-				return val, true
+				result,resOk = val, true
 			} else if since < c.hardLimit {
-				c.stats.CacheRescueCount++
+				cacheRescue = 1
 				// We didn't refresh, but it's still OK.
-				return cacheVal.value, true
+				result,resOk = cacheVal.value, true
 			} else {
-				// Too old!
-				c.stats.CacheMissCount++
-				return val,ok
+				// Cached value is too old. (Will be cleaned up eventually by the expiryTimeline.)
+				cacheMiss = 1
+				result,resOk = val,ok
 			}
 		}
-	}
-	c.stats.CacheMissCount++
-	// fallthrough: the cache didn't help us
-	if c.count < c.maxCount {
-		// We have space, let's put it in our cache!
-		return c.refresh(key, now, now)
 	} else {
-		c.stats.CacheNoRoomCount++
-		return c.queryFunc(key)
+	// The cache didn't help us
+		cacheMiss = 1
+		if c.count < c.maxCount {
+			// We have space, let's put it in our cache!
+			result,resOk = c.refresh(key, now, now)
+		} else {
+			// We're out of space, just return the result without caching.
+			cacheNoRoom = 1
+			result,resOk = c.queryFunc(key)
+		}
 	}
+	c.mutex.Lock()
+	c.stats.CacheHitCount += cacheHit
+	c.stats.CacheMissCount += cacheMiss
+	c.stats.CacheNoRoomCount += cacheNoRoom
+	c.stats.CacheRescueCount += cacheRescue
+	c.mutex.Unlock()
+	return result,resOk
 }
 
 
