@@ -12,7 +12,7 @@ dependency being unavailable.
 
 Creating a cache:
 
-	query := func(key string) {...}
+	query := func(context Context, key string) {...}
 	softLimit := 15 * time.Second
 	hardLimit := 30 * time.Minute
 	maxCount := 65536
@@ -22,7 +22,8 @@ Using the cache:
 
 	key := "{customerId=12345,orderId=67890}"
 	now := time.Now()
-	result,ok := cache.Get(key)
+	context := "something required for a particular service call"
+	result,ok := cache.Get(context, key)
 	if ok {
 		// Do something with result.
 	}

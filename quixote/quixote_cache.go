@@ -33,7 +33,7 @@ type Cache struct {
 
 // MakeQuixoteCache creates a new cache that calls queryFunc to get results from the source.
 // Parameters:
-// - queryFunc: the func that calls the source service to get current values.
+// - queryFunc: the func that calls the source service to get current value for a given key.
 // - softLimit: the age at which an item is considered stale and needing to be refreshed.
 // - hardLimit: the age at which a cached item will be removed from the cache.
 // - maxCount: the maximum number of items that can be stored in this cache.
@@ -82,8 +82,10 @@ func (c *Cache) refresh(context Context, key string, now time.Time, timeOld time
 	}
 }
 
-// Get is the public interface for Quixote. Get fetches fresh values from the source
+// Get is the public interface for Quixote. Get fetches a fresh value for the key from the source
 // as needed and stores them to satisfy future requests, and it returns a value if available.
+// The context parameter will be passed unchanged to the queryFunc, if a call to the service
+// is required.
 func (c *Cache) Get(context Context, key string) (string, bool) {
 	c.mutex.RLock()
 	cacheVal := c.index[key]
