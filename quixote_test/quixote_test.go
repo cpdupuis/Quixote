@@ -10,11 +10,11 @@ import (
 func TestInitialRefresh(t *testing.T) {
 	value := "value"
 	ok := true
-	query := func (key string) (string,bool) {
+	query := func (_ quixote.Context, key string) (string,bool) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
-	str,ok := ybc.Get("anything")
+	str,ok := ybc.Get("foo", "anything")
 	if !ok {
 		t.Fail()
 	}
@@ -26,11 +26,11 @@ func TestInitialRefresh(t *testing.T) {
 func TestSuccessfulSoftRefresh(t *testing.T) {
 	value := "value"
 	ok := true
-	query := func (key string) (string,bool) {
+	query := func (_ quixote.Context, key string) (string,bool) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Minute, 2)
-	str,ok := ybc.Get("anything")
+	str,ok := ybc.Get("foo", "anything")
 	if !ok {
 		t.Errorf("not ok")
 	}
@@ -39,7 +39,7 @@ func TestSuccessfulSoftRefresh(t *testing.T) {
 	}
 	time.Sleep(2 * time.Nanosecond)
 	value = "new value"
-	str,ok = ybc.Get("anything")
+	str,ok = ybc.Get("whatever", "anything")
 	if str != "new value" {
 		t.Errorf("not new value %s", str)
 	}
@@ -48,11 +48,11 @@ func TestSuccessfulSoftRefresh(t *testing.T) {
 func TestFailedSoftRefresh(t *testing.T) {
 	value := "value"
 	ok := true
-	query := func (key string) (string,bool) {
+	query := func (_ quixote.Context, key string) (string,bool) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Minute, 2)
-	str,ok := ybc.Get("anything")
+	str,ok := ybc.Get("hey", "anything")
 	if !ok {
 		t.Errorf("not ok")
 	}
@@ -62,7 +62,7 @@ func TestFailedSoftRefresh(t *testing.T) {
 	time.Sleep(2 * time.Nanosecond)
 	value = ""
 	ok = false
-	str,ok = ybc.Get("anything")
+	str,ok = ybc.Get("hi", "anything")
 	if str != "value" {
 		t.Errorf("not value %s", str)
 	}
@@ -71,11 +71,11 @@ func TestFailedSoftRefresh(t *testing.T) {
 func TestFailedHardRefresh(t *testing.T) {
 	value := "value"
 	ok := true
-	query := func (key string) (string,bool) {
+	query := func (_ quixote.Context, key string) (string,bool) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Microsecond, 2)
-	str,ok := ybc.Get("anything")
+	str,ok := ybc.Get("hey", "anything")
 	if !ok {
 		t.Errorf("not ok")
 	}
@@ -85,7 +85,7 @@ func TestFailedHardRefresh(t *testing.T) {
 	time.Sleep(2 * time.Microsecond)
 	value = "something else"
 	ok = false
-	str,ok = ybc.Get("anything")
+	str,ok = ybc.Get("hi", "anything")
 	if ok {
 		t.Errorf("Expected to be not OK")
 	}
@@ -94,21 +94,21 @@ func TestFailedHardRefresh(t *testing.T) {
 func TestCacheCapacity(t *testing.T) {
 	value := "un"
 	ok := true
-	query := func (key string) (string,bool) {
+	query := func (_ quixote.Context, key string) (string,bool) {
 		return value, ok
 	}	
 	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
-	str,ok := ybc.Get("one")
+	str,ok := ybc.Get("hi", "one")
 	if !ok || str != "un" {
 		t.Errorf("Expected un, got %s", str)
 	}
 	value = "deux"
-	str,ok = ybc.Get("two")
+	str,ok = ybc.Get("there", "two")
 	if !ok || str != "deux" {
 		t.Errorf("expected deux, got %s", str)
 	}
 	value = "trois"
-	str,ok = ybc.Get("one")
+	str,ok = ybc.Get("hello", "one")
 	if !ok || str != "un" {
 		t.Errorf("expected un, got: %s", str)
 	}
@@ -116,7 +116,7 @@ func TestCacheCapacity(t *testing.T) {
 
 
 func TestPerfNoOverflow(t *testing.T) {
-	query := func (key string) (string,bool) {
+	query := func (_ quixote.Context, key string) (string,bool) {
 		return key, true
 	}
 	ybc := quixote.MakeQuixoteCache(query, 	5* time.Millisecond, 2 * time.Minute, 1024)
@@ -124,7 +124,7 @@ func TestPerfNoOverflow(t *testing.T) {
 	for j:=0; j<4096; j++ {
 		for i:=0; i<1024; i++ {
 			key := fmt.Sprintf("key:%d", i)
-			res,ok := ybc.Get(key)
+			res,ok := ybc.Get("hi", key)
 			if !ok {
 				t.Errorf("Not OK!")
 				return

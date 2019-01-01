@@ -14,14 +14,17 @@ type cacheItem struct {
 	createTime time.Time
 }
 
+type Context interface {
+
+}
 
 // Cache is the main entry point for QuixoteCache.
 type Cache struct {
-	queryFunc    func(string) (string, bool) // returns the content and whether there was any content
+	queryFunc    func(Context, string) (string, bool) // returns the content and whether there was any content
 	index        map[string]*cacheItem       // protected by mutex.
-	timeline	 ExpiryTimeline	// timeline for expiring items in the cache
+	timeline	 ExpiryTimeline				// timeline for expiring items in the cache
 	count        int                         // number of items currently in the cache
-	maxCount	int	// maximum number of items in the cache
+	maxCount	int							// maximum number of items in the cache
 	stats        Stats                       // cache statistics
 	softLimit    time.Duration               // after the softLimit is passed, Get will query to get a fresh value, though it will return a cached value if an error occurs in the query
 	hardLimit    time.Duration               // after the hardLimit, the cached value is removed.
@@ -34,7 +37,7 @@ type Cache struct {
 // - softLimit: the age at which an item is considered stale and needing to be refreshed.
 // - hardLimit: the age at which a cached item will be removed from the cache.
 // - maxCount: the maximum number of items that can be stored in this cache.
-func MakeQuixoteCache(queryFunc func(string) (string, bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) *Cache {
+func MakeQuixoteCache(queryFunc func(Context, string) (string, bool), softLimit time.Duration, hardLimit time.Duration, maxCount int) *Cache {
 	if maxCount < 2 {
 		panic("maxCount must be at least 2.")
 	}
@@ -52,8 +55,8 @@ func MakeQuixoteCache(queryFunc func(string) (string, bool), softLimit time.Dura
 }
 
 // refresh is an internal function to retrieve a fresh value and update the cache with it.
-func (c *Cache) refresh(key string, now time.Time, timeOld time.Time) (string, bool) {
-	val, ok := c.queryFunc(key)
+func (c *Cache) refresh(context Context, key string, now time.Time, timeOld time.Time) (string, bool) {
+	val, ok := c.queryFunc(context, key)
 	if ok {
 		ci := &cacheItem{value: val, createTime: now}
 		c.mutex.Lock()
@@ -81,7 +84,7 @@ func (c *Cache) refresh(key string, now time.Time, timeOld time.Time) (string, b
 
 // Get is the public interface for Quixote. Get fetches fresh values from the source
 // as needed and stores them to satisfy future requests, and it returns a value if available.
-func (c *Cache) Get(key string) (string, bool) {
+func (c *Cache) Get(context Context, key string) (string, bool) {
 	c.mutex.RLock()
 	cacheVal := c.index[key]
 	c.mutex.RUnlock()
@@ -100,7 +103,7 @@ func (c *Cache) Get(key string) (string, bool) {
 			cacheHit = 1
 			result,resOk =  cacheVal.value, true
 		} else {
-			val, ok := c.refresh(key, now, cacheVal.createTime)
+			val, ok := c.refresh(context, key, now, cacheVal.createTime)
 			if ok {
 				cacheMiss = 1
 				// Hey, we refreshed successfully!
@@ -120,11 +123,11 @@ func (c *Cache) Get(key string) (string, bool) {
 		cacheMiss = 1
 		if c.count < c.maxCount {
 			// We have space, let's put it in our cache!
-			result,resOk = c.refresh(key, now, now)
+			result,resOk = c.refresh(context, key, now, now)
 		} else {
 			// We're out of space, just return the result without caching.
 			cacheNoRoom = 1
-			result,resOk = c.queryFunc(key)
+			result,resOk = c.queryFunc(context, key)
 		}
 	}
 	c.mutex.Lock()
