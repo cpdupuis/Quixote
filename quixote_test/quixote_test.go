@@ -14,7 +14,7 @@ func TestInitialRefresh(t *testing.T) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
-	str,ok := ybc.Get("foo", "anything")
+	str,ok := ybc.Get("context", "anything")
 	if !ok {
 		t.Fail()
 	}
@@ -30,7 +30,7 @@ func TestSuccessfulSoftRefresh(t *testing.T) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Minute, 2)
-	str,ok := ybc.Get("foo", "anything")
+	str,ok := ybc.Get("context", "anything")
 	if !ok {
 		t.Errorf("not ok")
 	}
@@ -52,7 +52,7 @@ func TestFailedSoftRefresh(t *testing.T) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Minute, 2)
-	str,ok := ybc.Get("hey", "anything")
+	str,ok := ybc.Get("context", "anything")
 	if !ok {
 		t.Errorf("not ok")
 	}
@@ -75,7 +75,7 @@ func TestFailedHardRefresh(t *testing.T) {
 		return value, ok
 	}
 	ybc := quixote.MakeQuixoteCache(query, time.Nanosecond, time.Microsecond, 2)
-	str,ok := ybc.Get("hey", "anything")
+	str,ok := ybc.Get("context", "anything")
 	if !ok {
 		t.Errorf("not ok")
 	}
@@ -98,7 +98,7 @@ func TestCacheCapacity(t *testing.T) {
 		return value, ok
 	}	
 	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
-	str,ok := ybc.Get("hi", "one")
+	str,ok := ybc.Get("context", "one")
 	if !ok || str != "un" {
 		t.Errorf("Expected un, got %s", str)
 	}
@@ -112,6 +112,9 @@ func TestCacheCapacity(t *testing.T) {
 	if !ok || str != "un" {
 		t.Errorf("expected un, got: %s", str)
 	}
+	if ybc.Stats().CacheHitCount != 1 {
+		t.Errorf("Expected 1 cache hit, got %d", ybc.Stats().CacheHitCount)
+	}
 }
 
 
@@ -124,7 +127,7 @@ func TestPerfNoOverflow(t *testing.T) {
 	for j:=0; j<4096; j++ {
 		for i:=0; i<1024; i++ {
 			key := fmt.Sprintf("key:%d", i)
-			res,ok := ybc.Get("hi", key)
+			res,ok := ybc.Get("context", key)
 			if !ok {
 				t.Errorf("Not OK!")
 				return
@@ -138,5 +141,27 @@ func TestPerfNoOverflow(t *testing.T) {
 	fmt.Printf("Stats: %v\n", stats)
 	if stats.CacheHitCount < 94 {
 		t.Errorf("Low cache hit count. Expected 94, got %d", stats.CacheHitCount)
+	}
+}
+
+func TestInvalidation(t *testing.T) {
+	value := "value"
+	ok := true
+	query := func (_ quixote.Context, key string) (string,bool) {
+		return value, ok
+	}
+	ybc := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
+	str,ok := ybc.Get("context", "anything")
+	if str != "value" {
+		t.Errorf("not value")
+	}
+	value = "new value"
+	ybc.Invalidate("anything")
+	str,ok = ybc.Get("context", "anything")
+	if str != "new value" {
+		t.Errorf("Expected new value: %s", str)
+	}
+	if ybc.Stats().ExplicitInvalidationCount != 1 {
+		t.Errorf("Expected one explicit invalidation: %d", ybc.Stats().ExplicitInvalidationCount)
 	}
 }

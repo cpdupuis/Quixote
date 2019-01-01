@@ -11,6 +11,7 @@ type Stats struct {
 	CacheMissCount int		// Count of items that were fulfilled by calling the queryFunc
 	CacheRescueCount int	// Count of requests that were fulfilled from cached items after their soft expiration
 	CacheNoRoomCount int	// Count of responses that were not cached due to the cache being full.
+	ExplicitInvalidationCount int // Count of items that were explicitly invalidated
 }
 
 // String encodes the Stats object as JSON.

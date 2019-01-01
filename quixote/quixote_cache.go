@@ -141,6 +141,18 @@ func (c *Cache) Get(context Context, key string) (string, bool) {
 	return result,resOk
 }
 
+// Invalidate forcibly removes an item from this instance of the cache.
+// This function does not enforce consistency if your cache is distributed
+// across multiple hosts.
+func (c *Cache) Invalidate(key string) {
+	c.mutex.Lock()
+	if ci := c.index[key]; ci != nil {
+		c.timeline.DeleteItem(key, ci.createTime)
+		delete(c.index, key)
+		c.stats.ExplicitInvalidationCount++
+	}
+	c.mutex.Unlock()
+}
 
 // Stats returns current statistics about cache performance.
 func (c *Cache) Stats() Stats {
