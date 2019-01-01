@@ -1,7 +1,6 @@
 package quixote
 
 import (
-	"math/rand"
 	"sync"
 	"time"
 )
@@ -13,7 +12,6 @@ import (
 type cacheItem struct {
 	value      string
 	createTime time.Time
-	id         uint64
 }
 
 
@@ -57,8 +55,7 @@ func MakeQuixoteCache(queryFunc func(string) (string, bool), softLimit time.Dura
 func (c *Cache) refresh(key string, now time.Time, timeOld time.Time) (string, bool) {
 	val, ok := c.queryFunc(key)
 	if ok {
-		id := rand.Uint64()
-		ci := &cacheItem{value: val, createTime: now, id: id}
+		ci := &cacheItem{value: val, createTime: now}
 		c.mutex.Lock()
 		c.index[key] = ci
 		// Clear expired items
