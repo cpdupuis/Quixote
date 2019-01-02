@@ -54,6 +54,13 @@ func MakeQuixoteCache(queryFunc func(Context, string) (string, bool), softLimit 
 	}
 }
 
+func (c *Cache) removeItem(key string) {
+	if _,ok := c.index[key]; ok {
+		delete(c.index, key)
+		c.count--
+	}
+}
+
 // refresh is an internal function to retrieve a fresh value and update the cache with it.
 func (c *Cache) refresh(context Context, key string, now time.Time, timeOld time.Time) (string, bool) {
 	val, ok := c.queryFunc(context, key)
@@ -63,7 +70,7 @@ func (c *Cache) refresh(context Context, key string, now time.Time, timeOld time
 		c.index[key] = ci
 		// Clear expired items
 		c.timeline.ExpireItems(now, func(akey string) {
-			delete(c.index, akey)
+			c.removeItem(akey)
 		})
 		// And replace!
 		c.timeline.ReplaceItem(key, timeOld, now)
@@ -73,7 +80,7 @@ func (c *Cache) refresh(context Context, key string, now time.Time, timeOld time
 		// Clear expired items
 		c.mutex.Lock()
 		c.timeline.ExpireItems(now, func(akey string) {
-			delete(c.index, akey)
+			c.removeItem(akey)
 		})
 		c.mutex.Unlock()
 		
@@ -95,6 +102,8 @@ func (c *Cache) Get(context Context, key string) (string, bool) {
 	var cacheHit int
 	var cacheRescue int
 	var cacheNoRoom int
+	var cacheNewItem int 
+	var cacheRequestFail int
 
 	var result string
 	var resOk bool
@@ -116,20 +125,29 @@ func (c *Cache) Get(context Context, key string) (string, bool) {
 				result,resOk = cacheVal.value, true
 			} else {
 				// Cached value is too old. (Will be cleaned up eventually by the expiryTimeline.)
-				cacheMiss = 1
+				cacheRequestFail = 1
 				result,resOk = val,ok
 			}
 		}
 	} else {
-	// The cache didn't help us
-		cacheMiss = 1
+		// The cache didn't help us
 		if c.count < c.maxCount {
 			// We have space, let's put it in our cache!
 			result,resOk = c.refresh(context, key, now, now)
+			if resOk {
+				cacheNewItem = 1
+				c.count++	
+			} else {
+				cacheRequestFail = 1
+			}
 		} else {
 			// We're out of space, just return the result without caching.
-			cacheNoRoom = 1
 			result,resOk = c.queryFunc(context, key)
+			if resOk {
+				cacheNoRoom = 1
+			} else {
+				cacheRequestFail = 1
+			}
 		}
 	}
 	c.mutex.Lock()
@@ -137,6 +155,8 @@ func (c *Cache) Get(context Context, key string) (string, bool) {
 	c.stats.CacheMissCount += cacheMiss
 	c.stats.CacheNoRoomCount += cacheNoRoom
 	c.stats.CacheRescueCount += cacheRescue
+	c.stats.CacheNewItemCount += cacheNewItem
+	c.stats.CacheRequestFailCount += cacheRequestFail
 	c.mutex.Unlock()
 	return result,resOk
 }
@@ -149,6 +169,7 @@ func (c *Cache) Invalidate(key string) {
 	if ci := c.index[key]; ci != nil {
 		c.timeline.DeleteItem(key, ci.createTime)
 		delete(c.index, key)
+		c.count--
 		c.stats.ExplicitInvalidationCount++
 	}
 	c.mutex.Unlock()

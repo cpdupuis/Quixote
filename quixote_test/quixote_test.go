@@ -117,6 +117,35 @@ func TestCacheCapacity(t *testing.T) {
 	}
 }
 
+func TestCacheOverCapacity(t *testing.T) {
+	value := "un"
+	ok := true
+	query := func (_ quixote.Context, key string) (string,bool) {
+		return value, ok
+	}	
+	cache := quixote.MakeQuixoteCache(query, time.Minute, time.Minute, 2)
+	str,ok := cache.Get("context", "one")
+	if !ok || str != "un" {
+		t.Errorf("Expected un, got %s", str)
+	}
+	value = "deux"
+	str,ok = cache.Get("there", "two")
+	if !ok || str != "deux" {
+		t.Errorf("expected deux, got %s", str)
+	}
+	value = "trois"
+	str,ok = cache.Get("hello", "three")
+	if !ok || str != "trois" {
+		t.Errorf("expected trois, got: %s", str)
+	}
+	if cache.Stats().CacheNewItem != 2 {
+		t.Errorf("Expected 2 cache newitem, got %d", cache.Stats().CacheNewItem)
+	}
+	if cache.Stats().CacheNoRoomCount != 1 {
+		t.Errorf("Expected 1 cache noroom, got %d", cache.Stats().CacheNoRoomCount)
+	}
+}
+
 
 func TestPerfNoOverflow(t *testing.T) {
 	query := func (_ quixote.Context, key string) (string,bool) {
