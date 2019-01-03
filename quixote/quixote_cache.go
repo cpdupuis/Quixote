@@ -126,7 +126,7 @@ func (c *Cache) Get(context Context, key string) (string, bool) {
 			} else {
 				// Cached value is too old. (Will be cleaned up eventually by the expiryTimeline.)
 				cacheRequestFail = 1
-				result,resOk = val,ok
+				result,resOk = "",false
 			}
 		}
 	} else {
@@ -177,5 +177,16 @@ func (c *Cache) Invalidate(key string) {
 
 // Stats returns current statistics about cache performance.
 func (c *Cache) Stats() Stats {
-	return c.stats
+	c.mutex.Lock()
+	stats := c.stats
+	c.mutex.Unlock()
+	return stats
+}
+
+func (c *Cache) GetAndResetStats() Stats {
+	c.mutex.Lock()
+	stats := c.stats
+	c.stats = Stats{}
+	c.mutex.Unlock()
+	return stats
 }

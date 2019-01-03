@@ -138,8 +138,8 @@ func TestCacheOverCapacity(t *testing.T) {
 	if !ok || str != "trois" {
 		t.Errorf("expected trois, got: %s", str)
 	}
-	if cache.Stats().CacheNewItem != 2 {
-		t.Errorf("Expected 2 cache newitem, got %d", cache.Stats().CacheNewItem)
+	if cache.Stats().CacheNewItemCount != 2 {
+		t.Errorf("Expected 2 cache newitem, got %d", cache.Stats().CacheNewItemCount)
 	}
 	if cache.Stats().CacheNoRoomCount != 1 {
 		t.Errorf("Expected 1 cache noroom, got %d", cache.Stats().CacheNoRoomCount)

@@ -37,15 +37,18 @@ func main() {
 			return "",false
 		}
 	}
-	cache := quixote.MakeQuixoteCache(cacheFunc, 1 * time.Second, 30 * time.Second, 1024)
+	cache := quixote.MakeQuixoteCache(cacheFunc, 8 * time.Second, 24 * time.Second, 4096)
 	start := time.Now()
-	for i:=0; i<20000; i++ {
-		keyNum := rand.Intn(1024)
+	for i:=0; i<1000000; i++ {
+		keyNum := rand.Intn(4096)
 		str,ok := cache.Get(serv, fmt.Sprintf("%d", keyNum))
 		if !ok {
 			failures++
 		} else if len(str) == 0 {
 			noData++
+		}
+		if i % 1000 == 0 {
+			fmt.Printf("So far: %v", cache.GetAndResetStats().String())
 		}
 	}
 	end := time.Now()
