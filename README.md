@@ -18,7 +18,7 @@ dependency being unavailable.
 
 ## Installation
 
-`go get github.com/cpdupuis/Quixote`
+`go get github.com/cpdupuis/Quixote/quixote`
 
 ## Usage
 
