@@ -26,7 +26,7 @@ This example shows a program that prints the result of calling a service. The re
 cached, with a soft expiry after 10 seconds, and a hard expiry after 15 minutes. The
 cache has a maximum size of 256 items.
 
-```
+```go
 func callService(params string) (string,bool) {
     // Call a service, return the result as a string, as well as a boolean ok value
 }
