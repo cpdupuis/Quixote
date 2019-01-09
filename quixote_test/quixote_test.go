@@ -168,8 +168,8 @@ func TestPerfNoOverflow(t *testing.T) {
 	}
 	stats := cache.Stats()
 	fmt.Printf("Stats: %v\n", stats)
-	if stats.CacheHitCount < 94 {
-		t.Errorf("Low cache hit count. Expected 94, got %d", stats.CacheHitCount)
+	if stats.CacheHitCount < 3900000 {
+		t.Errorf("Low cache hit count. Expected at least 3900000, got %d", stats.CacheHitCount)
 	}
 }
 
@@ -193,4 +193,36 @@ func TestInvalidation(t *testing.T) {
 	if cache.Stats().ExplicitInvalidationCount != 1 {
 		t.Errorf("Expected one explicit invalidation: %d", cache.Stats().ExplicitInvalidationCount)
 	}
+}
+
+func TestZeroSecondCache(t *testing.T) {
+	res := true
+	query := func (_ quixote.Context, key string) (string,bool) {
+		return key, res
+	}
+	cache := quixote.MakeQuixoteCache(query, 0* time.Millisecond, 2 * time.Minute, 1024)
+
+	for j:=0; j<1024; j++ {
+		for i:=0; i<1024; i++ {
+			key := fmt.Sprintf("key:%d", i)
+			res,ok := cache.Get("context", key)
+			if !ok {
+				t.Errorf("Not OK!")
+				return
+			}
+			if res != key {
+				t.Errorf("Wrong res, expected %s, got %s", key, res)
+			}
+		}
+		res = false
+	}
+	stats := cache.Stats()
+	fmt.Printf("Stats: %v\n", stats)
+	if stats.CacheHitCount != 0 {
+		t.Errorf("Wrong cache hit count. Expected 0, got %d", stats.CacheHitCount)
+	}
+	if stats.CacheRescueCount != 1047552 {
+		t.Errorf("Expected 1047552 rescues, got %d", stats.CacheRescueCount)
+	}
+
 }
